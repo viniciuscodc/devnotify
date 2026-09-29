@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-repository="${DEVNOTIFY_REPOSITORY:-ebanx/devnotify}"
+repository="${DEVNOTIFY_REPOSITORY:-viniciuscodc/devnotify}"
 install_dir="${DEVNOTIFY_INSTALL_DIR:-$HOME/Applications}"
 temp_dir="$(mktemp -d)"
 trap 'rm -rf "$temp_dir"' EXIT

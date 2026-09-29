@@ -32,16 +32,67 @@ DevNotify is a native macOS menu bar app that keeps meetings and GitHub pull req
 
 - macOS 14 or newer
 - Xcode Command Line Tools (`xcode-select --install`)
-- A GitHub personal access token for PR features. Grant access to the repositories you want to monitor, pull requests, commit statuses/checks, Actions (for reruns), and contents/pull requests write access if you want to merge.
+- A GitHub personal access token for PR features
+- Google Calendar connected to Apple Calendar if your meetings are hosted by Google
 
-Calendar access and notification access are requested by macOS when DevNotify first needs them.
+## Connect Google Calendar to Apple Calendar
+
+DevNotify uses Apple’s EventKit framework and reads the calendars already available to macOS. It does not connect directly to the Google Calendar API and does not ask for your Google password or an additional Google OAuth token. Connecting the accounts lets macOS handle synchronization while DevNotify reads one system calendar source for Google, iCloud, Exchange, and local events.
+
+If your meetings are stored in Google Calendar:
+
+1. Open the **Calendar** app on your Mac.
+2. Choose **Calendar → Add Account**.
+3. Select **Google**, click **Continue**, and sign in.
+4. Make sure **Calendars** is enabled for the account.
+5. In Apple Calendar, show the calendar list and confirm that the required Google calendars are selected and their events appear.
+6. Optionally open **Calendar → Settings → Accounts** and choose how often calendars refresh.
+
+You can also add the account from **System Settings → Internet Accounts → Add Account → Google** and enable Calendars. If a shared or secondary Google calendar does not appear, select it on Google’s Calendar sync page and refresh Apple Calendar. See [Apple’s calendar-account instructions](https://support.apple.com/guide/calendar/icl4308d6701/mac) and [Google’s Apple Calendar sync guide](https://support.google.com/calendar/answer/99358?hl=en).
+
+## Create the GitHub token
+
+The token authenticates DevNotify’s GitHub API requests. It is required for the **Pull Requests** tab to load private repository data. DevNotify uses it to:
+
+- Find and read open pull requests and submitted reviews.
+- Read commit statuses and check runs to determine CI state.
+- Read workflow runs and, when requested, re-run failed GitHub Actions jobs.
+- Merge a pull request only when you click **Merge**.
+
+Create a fine-grained token:
+
+1. Open [GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/personal-access-tokens/new).
+2. Name it `DevNotify`, choose an expiration, and select the user or organization that owns the repositories.
+3. Under **Repository access**, choose the repositories DevNotify should monitor. Create another token if you need repositories owned by a different resource owner.
+4. Configure these repository permissions:
+   - **Metadata: Read** — GitHub adds this automatically to fine-grained tokens.
+   - **Pull requests: Read** — load PR details and reviews.
+   - **Checks: Read** — read check-run results.
+   - **Commit statuses: Read** — read combined CI status.
+   - **Contents: Write** — required by GitHub’s merge-PR endpoint. Omit it if you will not merge from DevNotify.
+   - **Actions: Write** — required to re-run failed jobs. Use Read or omit it if you will not use that action.
+5. Generate the token, copy it, and paste it into **DevNotify → Settings → GitHub**. GitHub only displays it once.
+
+An organization may require an administrator to approve the token before private repositories become available. For a classic token, the `repo` scope works but grants broader access; GitHub recommends fine-grained tokens where possible. See [GitHub’s token creation and security guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
+
+## Permissions and privacy
+
+DevNotify requests only the access needed for its features:
+
+- **Calendar — Full Access:** reads event times, titles, attendee responses, locations, notes, and URLs so it can build the meeting list and detect Meet, Zoom, or Teams links. DevNotify does not edit calendar events.
+- **Notifications:** displays meeting reminders, ready-to-merge alerts, and new-review alerts. Notifications can be muted globally, and review alerts have a separate switch.
+- **Open at Login / Login Items:** lets DevNotify start after you sign in so reminders and PR polling work without opening the app manually. This is enabled by default and can be disabled in Settings.
+- **Keychain:** stores the GitHub token in the macOS login Keychain instead of UserDefaults or a plain-text file.
+- **Network:** contacts `api.github.com` for PR data/actions and GitHub’s image hosts for avatars. Calendar events are read locally through macOS; DevNotify does not send them to GitHub.
+
+macOS prompts for Calendar and Notification access when DevNotify first needs them. You can review or revoke these permissions in **System Settings → Privacy & Security → Calendars** and **System Settings → Notifications → DevNotify**. Disabling a permission disables only the related features.
 
 ## Quick install
 
 With [GitHub CLI](https://cli.github.com/) authenticated, install the latest version into `~/Applications` and launch it:
 
 ```zsh
-gh api -H 'Accept: application/vnd.github.raw+json' repos/ebanx/devnotify/contents/scripts/install.sh | zsh
+gh api -H 'Accept: application/vnd.github.raw+json' repos/viniciuscodc/devnotify/contents/scripts/install.sh | zsh
 ```
 
 If the repository has a different owner/name, the installer can be reused without editing it:
