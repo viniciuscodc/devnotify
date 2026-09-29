@@ -26,6 +26,7 @@ DevNotify is a native macOS menu bar app that keeps meetings and GitHub pull req
 - One settings window without duplicate notification or appearance controls.
 - A global mute switch for all notifications.
 - Launch at login is enabled by default and can be changed under **Settings → General**.
+- Commit-based automatic updates are enabled by default, with a manual update button in **Settings → General**.
 - GitHub tokens are stored in the macOS Keychain.
 
 ## Requirements
@@ -80,6 +81,14 @@ DevNotify requests only the access needed for its features:
 - **Network:** contacts `api.github.com` for PR data/actions and GitHub’s image hosts for avatars. Calendar events are read locally through macOS; DevNotify does not send them to GitHub.
 
 macOS prompts for Calendar and Notification access when DevNotify first needs them. You can review or revoke these permissions in **System Settings → Privacy & Security → Calendars** and **System Settings → Notifications → DevNotify**. Disabling a permission disables only the related features.
+
+## Updates and commit versions
+
+DevNotify uses the full Git commit SHA as its installed version and displays the shortened hash in **Settings → General → Updates**. Every six hours, the app compares that hash with the newest commit on the default branch of [`viniciuscodc/devnotify`](https://github.com/viniciuscodc/devnotify). If they differ and automatic updates are enabled, DevNotify downloads that exact commit, builds it, replaces the installed app, and relaunches. **Check for Updates** performs the same operation immediately, even when automatic updates are disabled.
+
+Automatic updates are enabled by default. They use the same installer as a fresh installation, so GitHub CLI and Xcode Command Line Tools must remain available. A development build created by `scripts/run-app.sh` reports its local commit but will not replace itself automatically; its manual update button still works and installs the latest commit into `~/Applications`.
+
+Installer and development builds use a stable designated code requirement for the app’s existing bundle identifier, `com.ebanx.devnotify`. This lets macOS recognize each newly built commit as the same application, preserving Calendar and Notification authorization across normal updates without resetting existing preferences. The first installation after this signing change may require one final authorization because older builds used a changing ad-hoc identity. Authorization can still be requested again if you revoke it, change the bundle identifier/signing requirement, or run a differently signed copy.
 
 ## Quick install
 

@@ -23,7 +23,7 @@ struct DevNotifyApp: App {
             MeetingStatusLabel(store: model.calendar, settings: model.settings)
         }
         .menuBarExtraStyle(.window)
-        Settings { PreferencesView(settings: model.settings, calendar: model.calendar) }
+        Settings { PreferencesView(settings: model.settings, calendar: model.calendar, updater: model.updater) }
     }
 }
 

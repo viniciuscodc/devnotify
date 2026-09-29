@@ -3,6 +3,7 @@ import SwiftUI
 struct PreferencesView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var calendar: CalendarStore
+    @ObservedObject var updater: UpdateController
     @StateObject private var permissions = PermissionStatus()
     @State private var showsToken = false
 
@@ -24,6 +25,33 @@ struct PreferencesView: View {
                 Toggle("Open DevNotify at login", isOn: $settings.openAtLogin)
                 Text("Enabled by default. macOS may ask you to confirm this in Login Items.").font(.caption).foregroundStyle(.secondary)
                 if let error = settings.loginItemError { Text(error).font(.caption).foregroundStyle(.red) }
+            }
+            Section("Updates") {
+                Toggle("Automatically install updates", isOn: $settings.autoUpdatesEnabled)
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(updater.statusMessage)
+                        Text("Current version: \(updater.currentVersion)")
+                            .font(.caption.monospaced()).foregroundStyle(.secondary)
+                        if let latest = updater.latestCommit {
+                            Text("Latest commit: \(String(latest.prefix(7)))")
+                                .font(.caption.monospaced()).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        updater.checkManually()
+                    } label: {
+                        if updater.isBusy {
+                            HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Updating…") }
+                        } else {
+                            Text("Check for Updates")
+                        }
+                    }
+                    .disabled(updater.isBusy)
+                }
+                Text("DevNotify compares its commit hash with the newest commit on viniciuscodc/devnotify. Updating downloads, rebuilds, replaces, and relaunches the app.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Notifications") {
                 Toggle("Mute all notifications", isOn: $settings.notificationsMuted)

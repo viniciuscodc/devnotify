@@ -31,6 +31,12 @@ import Testing
     #expect(GitHubClient.isApproved(reviews: reviews))
 }
 
+@Test func commitHashDeterminesUpdateAvailability() {
+    let current = "0123456789abcdef"
+    #expect(!UpdateController.updateAvailable(current: current, latest: current))
+    #expect(UpdateController.updateAvailable(current: current, latest: "fedcba9876543210"))
+}
+
 private func makePR(id: Int, author: Bool, approved: Bool, ci: CIState, updatedAt: Date = .now, login: String = "dev") -> PullRequest {
     PullRequest(id: id, number: id, title: "PR", repository: "org/repo", authorLogin: login, authorAvatarURL: nil,
         url: URL(string: "https://github.com/org/repo/pull/\(id)")!, headSHA: "sha", updatedAt: updatedAt,

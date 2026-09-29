@@ -16,6 +16,7 @@ final class AppSettings: ObservableObject {
         static let notificationsMuted = "notificationsMuted"
         static let reviewNotificationsEnabled = "reviewNotificationsEnabled"
         static let openAtLogin = "openAtLogin"
+        static let autoUpdatesEnabled = "autoUpdatesEnabled"
         static let meetingShortcutEnabled = "meetingShortcutEnabled"
         static let meetingShortcutKey = "meetingShortcutKey"
         static let menuBarDisplayMode = "menuBarDisplayMode"
@@ -42,6 +43,7 @@ final class AppSettings: ObservableObject {
             configureOpenAtLogin()
         }
     }
+    @Published var autoUpdatesEnabled: Bool { didSet { save(autoUpdatesEnabled, Key.autoUpdatesEnabled) } }
     @Published var meetingShortcutEnabled: Bool { didSet { save(meetingShortcutEnabled, Key.meetingShortcutEnabled) } }
     @Published var meetingShortcutKey: String { didSet { save(meetingShortcutKey, Key.meetingShortcutKey) } }
     @Published var menuBarDisplayMode: MenuBarDisplayMode { didSet { save(menuBarDisplayMode.rawValue, Key.menuBarDisplayMode) } }
@@ -62,6 +64,7 @@ final class AppSettings: ObservableObject {
         notificationsMuted = defaults.object(forKey: Key.notificationsMuted) as? Bool ?? false
         reviewNotificationsEnabled = defaults.object(forKey: Key.reviewNotificationsEnabled) as? Bool ?? true
         openAtLogin = defaults.object(forKey: Key.openAtLogin) as? Bool ?? true
+        autoUpdatesEnabled = defaults.object(forKey: Key.autoUpdatesEnabled) as? Bool ?? true
         meetingShortcutEnabled = defaults.object(forKey: Key.meetingShortcutEnabled) as? Bool ?? true
         meetingShortcutKey = defaults.string(forKey: Key.meetingShortcutKey) ?? "J"
         menuBarDisplayMode = defaults.string(forKey: Key.menuBarDisplayMode).flatMap(MenuBarDisplayMode.init(rawValue:)) ?? .meetingTitle
