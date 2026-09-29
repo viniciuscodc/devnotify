@@ -59,21 +59,15 @@ The token authenticates DevNotify’s GitHub API requests. It is required for th
 - Read workflow runs and, when requested, re-run failed GitHub Actions jobs.
 - Merge a pull request only when you click **Merge**.
 
-Create a fine-grained token:
+Create a classic personal access token:
 
-1. Open [GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/personal-access-tokens/new).
-2. Name it `DevNotify`, choose an expiration, and select the user or organization that owns the repositories.
-3. Under **Repository access**, choose the repositories DevNotify should monitor. Create another token if you need repositories owned by a different resource owner.
-4. Configure these repository permissions:
-   - **Metadata: Read** — GitHub adds this automatically to fine-grained tokens.
-   - **Pull requests: Read** — load PR details and reviews.
-   - **Checks: Read** — read check-run results.
-   - **Commit statuses: Read** — read combined CI status.
-   - **Contents: Write** — required by GitHub’s merge-PR endpoint. Omit it if you will not merge from DevNotify.
-   - **Actions: Write** — required to re-run failed jobs. Use Read or omit it if you will not use that action.
-5. Generate the token, copy it, and paste it into **DevNotify → Settings → GitHub**. GitHub only displays it once.
+1. Open [GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens/new).
+2. Enter `DevNotify` in the **Note** field and choose an expiration date.
+3. Enable the **`repo`** scope. This gives DevNotify the repository access needed to load private PRs and reviews, inspect CI, re-run failed jobs, and merge when you request those actions.
+4. Click **Generate token**, copy the resulting `ghp_…` value, and paste it into **DevNotify → Settings → GitHub**. GitHub only displays the token once.
+5. If an organization uses SAML SSO, use **Configure SSO** beside the new token and authorize it for that organization.
 
-An organization may require an administrator to approve the token before private repositories become available. For a classic token, the `repo` scope works but grants broader access; GitHub recommends fine-grained tokens where possible. See [GitHub’s token creation and security guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
+The classic `repo` scope is broad: it grants repository access according to the permissions of the GitHub account that created it. Set an expiration, keep the token private, and revoke it when you stop using DevNotify. See [GitHub’s token creation and security guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic).
 
 ## Permissions and privacy
 

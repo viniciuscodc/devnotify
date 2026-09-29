@@ -94,10 +94,10 @@ struct PreferencesView: View {
                     Text("Personal access token").font(.subheadline.weight(.medium))
                     HStack(spacing: 8) {
                         ZStack {
-                            SecureField("github_pat_…", text: $settings.token)
+                            SecureField("ghp_…", text: $settings.token)
                                 .opacity(showsToken ? 0 : 1)
                                 .allowsHitTesting(!showsToken)
-                            TextField("github_pat_…", text: $settings.token)
+                            TextField("ghp_…", text: $settings.token)
                                 .opacity(showsToken ? 1 : 0)
                                 .allowsHitTesting(showsToken)
                         }
@@ -117,12 +117,12 @@ struct PreferencesView: View {
                           systemImage: settings.token.isEmpty ? "exclamationmark.triangle.fill" : "checkmark.shield.fill")
                         .foregroundStyle(settings.token.isEmpty ? .orange : .green)
                     Spacer()
-                    Link("Create token…", destination: URL(string: "https://github.com/settings/personal-access-tokens/new")!)
+                    Link("Create classic token…", destination: URL(string: "https://github.com/settings/tokens/new")!)
                 }.font(.caption)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Fine-grained repository permissions:").fontWeight(.medium)
-                    Text("Metadata: Read (automatic) · Pull requests: Read · Checks: Read · Commit statuses: Read · Contents: Write (merge) · Actions: Write (re-run failed jobs)")
-                    Text("Select every repository DevNotify should monitor. Your organization may need to approve the token.")
+                    Text("Required classic token scope:").fontWeight(.medium)
+                    Text("repo — access pull requests, reviews, CI status, workflow runs, failed-job reruns, and merges in repositories you can access.")
+                    Text("If your organization uses SAML SSO, authorize the token for that organization after creating it.")
                 }.font(.caption).foregroundStyle(.secondary)
             }
             Section("Repositories and organizations") {
