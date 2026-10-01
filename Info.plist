@@ -9,6 +9,7 @@
     <key>CFBundleShortVersionString</key><string>1.0.0</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>DevNotifyCommitHash</key><string>development</string>
+    <key>CFBundleIconFile</key><string>DevNotify</string>
     <key>LSUIElement</key><true/>
     <key>NSCalendarsFullAccessUsageDescription</key><string>DevNotify reads your calendars to show upcoming meetings and their call links.</string>
     <key>NSUserNotificationUsageDescription</key><string>DevNotify sends meeting and pull request notifications.</string>
