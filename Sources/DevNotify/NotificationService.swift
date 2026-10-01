@@ -12,7 +12,7 @@ enum NotificationService {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
-    @MainActor
+@MainActor
     static func scheduleMeetings(_ events: [CalendarEvent], minutesBefore: Int, muted: Bool, requestAuthorization: Bool = false) {
         let previous = meetingTask
         meetingTask = Task {
@@ -78,11 +78,17 @@ enum NotificationService {
     private static func appIconAttachment() -> UNNotificationAttachment? {
         let dest = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("dn_appicon.png")
         if !FileManager.default.fileExists(atPath: dest.path) {
-            guard let icnsURL = Bundle.main.url(forResource: "DevNotify", withExtension: "icns"),
+            // Explicit path avoids resource-lookup issues with ad-hoc signed bundles
+            let icnsPath = Bundle.main.bundlePath + "/Contents/Resources/DevNotify.icns"
+            let icnsURL = URL(fileURLWithPath: icnsPath)
+            guard FileManager.default.fileExists(atPath: icnsPath),
                   let image = NSImage(contentsOf: icnsURL),
                   let tiff = image.tiffRepresentation,
                   let rep = NSBitmapImageRep(data: tiff),
-                  let png = rep.representation(using: .png, properties: [:]) else { return nil }
+                  let png = rep.representation(using: .png, properties: [:]) else {
+                logger.error("appIconAttachment: failed to load icns from \(icnsPath)")
+                return nil
+            }
             try? png.write(to: dest)
         }
         return try? UNNotificationAttachment(identifier: "appicon", url: dest, options: nil)
