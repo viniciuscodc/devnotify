@@ -12,7 +12,8 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 if ! command -v swift >/dev/null 2>&1; then
-  print -u2 "DevNotify requires Xcode Command Line Tools. Run: xcode-select --install"
+  print -u2 "DevNotify is installed from source and requires the Swift compiler to build."
+  print -u2 "Install Xcode Command Line Tools (free, no full Xcode needed): xcode-select --install"
   exit 1
 fi
 
@@ -31,19 +32,23 @@ tar -xzf "$temp_dir/source.tar.gz" -C "$temp_dir/source" --strip-components=1
 cd "$temp_dir/source"
 
 print "Building DevNotify…"
-# CLT-only installations lack platform metadata required by the Swift build system.
-# If the lookup fails and Xcode.app is present, switch to it automatically.
 if ! xcrun --sdk macosx --show-sdk-platform-path &>/dev/null 2>&1; then
   if [[ -d /Applications/Xcode.app ]]; then
-    print "Xcode found — using it to resolve SDK platform path…"
     export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   else
-    print -u2 "DevNotify requires Xcode (not just Command Line Tools) to build."
-    print -u2 "Install Xcode from the App Store, then re-run this script."
-    exit 1
+    print "Your Xcode Command Line Tools installation is missing SDK metadata. Attempting to fix…"
+    sdk_path="$(xcrun --sdk macosx --show-sdk-path 2>/dev/null || true)"
+    if [[ -n "$sdk_path" ]]; then
+      export SDKROOT="$sdk_path"
+    fi
   fi
 fi
-swift build -c release
+if ! swift build -c release; then
+  print -u2 "Build failed. Your Xcode Command Line Tools installation is likely incomplete."
+  print -u2 "Run the following to reinstall them, then try again:"
+  print -u2 "  xcode-select --install"
+  exit 1
+fi
 app_path="$temp_dir/DevNotify.app"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
 cp ".build/release/DevNotify" "$app_path/Contents/MacOS/DevNotify"
