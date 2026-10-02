@@ -31,6 +31,18 @@ tar -xzf "$temp_dir/source.tar.gz" -C "$temp_dir/source" --strip-components=1
 cd "$temp_dir/source"
 
 print "Building DevNotify…"
+# CLT-only installations lack platform metadata required by the Swift build system.
+# If the lookup fails and Xcode.app is present, switch to it automatically.
+if ! xcrun --sdk macosx --show-sdk-platform-path &>/dev/null 2>&1; then
+  if [[ -d /Applications/Xcode.app ]]; then
+    print "Xcode found — using it to resolve SDK platform path…"
+    export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+  else
+    print -u2 "DevNotify requires Xcode (not just Command Line Tools) to build."
+    print -u2 "Install Xcode from the App Store, then re-run this script."
+    exit 1
+  fi
+fi
 swift build -c release
 app_path="$temp_dir/DevNotify.app"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"

@@ -40,7 +40,6 @@ enum NotificationService {
                 let content = UNMutableNotificationContent(); content.title = event.title
                 content.body = intended > now ? "Starts in \(minutesBefore) minute\(minutesBefore == 1 ? "" : "s")" : "Starts at \(event.startDate.formatted(date: .omitted, time: .shortened))"
                 content.sound = .default
-                if let icon = appIconAttachment() { content.attachments = [icon] }
                 if let url = event.videoURL { content.categoryIdentifier = "MEETING_REMINDER"; content.userInfo = ["url": url.absoluteString] }
                 let components = Calendar.current.dateComponents([.calendar, .timeZone, .year, .month, .day, .hour, .minute, .second], from: date)
                 do {
@@ -53,8 +52,7 @@ enum NotificationService {
     }
 
     static func ready(_ pullRequest: PullRequest) {
-        send(title: "PR Ready to Merge", body: pullRequest.title, pullRequest: pullRequest,
-             icon: appIconAttachment())
+        send(title: "PR Ready to Merge", body: pullRequest.title, pullRequest: pullRequest)
     }
 
     static func reviewed(_ pullRequest: PullRequest, review: PullRequestReview) {
@@ -65,32 +63,12 @@ enum NotificationService {
         default: action = "reviewed"
         }
         send(title: "PR Reviewed", body: "@\(review.reviewer) \(action) \(pullRequest.repository) #\(pullRequest.number): \(pullRequest.title)",
-             pullRequest: pullRequest, icon: appIconAttachment())
+             pullRequest: pullRequest)
     }
 
-    private static func send(title: String, body: String, pullRequest: PullRequest, icon: UNNotificationAttachment?) {
+    private static func send(title: String, body: String, pullRequest: PullRequest) {
         let content = UNMutableNotificationContent(); content.title = title; content.body = body; content.sound = .default
         content.categoryIdentifier = "PULL_REQUEST"; content.userInfo = ["url": pullRequest.url.absoluteString]
-        if let icon { content.attachments = [icon] }
         UNUserNotificationCenter.current().add(.init(identifier: "pr-\(pullRequest.id)-\(UUID())", content: content, trigger: nil))
-    }
-
-    private static func appIconAttachment() -> UNNotificationAttachment? {
-        let dest = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("dn_appicon.png")
-        if !FileManager.default.fileExists(atPath: dest.path) {
-            // Explicit path avoids resource-lookup issues with ad-hoc signed bundles
-            let icnsPath = Bundle.main.bundlePath + "/Contents/Resources/DevNotify.icns"
-            let icnsURL = URL(fileURLWithPath: icnsPath)
-            guard FileManager.default.fileExists(atPath: icnsPath),
-                  let image = NSImage(contentsOf: icnsURL),
-                  let tiff = image.tiffRepresentation,
-                  let rep = NSBitmapImageRep(data: tiff),
-                  let png = rep.representation(using: .png, properties: [:]) else {
-                logger.error("appIconAttachment: failed to load icns from \(icnsPath)")
-                return nil
-            }
-            try? png.write(to: dest)
-        }
-        return try? UNNotificationAttachment(identifier: "appicon", url: dest, options: nil)
     }
 }
