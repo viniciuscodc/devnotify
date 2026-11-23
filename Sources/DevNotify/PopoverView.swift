@@ -60,7 +60,8 @@ struct DevNotifyPopover: View {
                 Button(role: .destructive) { NSApplication.shared.terminate(nil) } label: { Image(systemName: "xmark") }.help("Quit DevNotify")
             }.font(.caption).padding(.horizontal, 16).padding(.vertical, 11)
         }
-        .frame(width: tab.wrappedValue == .meetings ? 380 : 440, height: CGFloat(settings.popoverHeight))
+        // One width for both tabs: the MenuBarExtra window grows with its content but never shrinks back.
+        .frame(width: 440, height: CGFloat(settings.popoverHeight))
         .task { await calendar.refresh(); await pullRequests.refresh() }
     }
 
