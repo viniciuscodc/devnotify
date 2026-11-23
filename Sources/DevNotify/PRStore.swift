@@ -16,6 +16,7 @@ final class PRStore: ObservableObject {
     private var refreshRequested = false
     private var knownReadyIDs: Set<Int>?
     private var knownReviewIDs: Set<Int>?
+    private var fetchedFilteredUsers: Set<String> = []
 
     private var filteredPullRequests: [PullRequest] {
         let users = settings.parsedFilteredUsers
@@ -41,7 +42,9 @@ final class PRStore: ObservableObject {
             if refreshRequested { refreshRequested = false; Task { await refresh() } }
         }
         do {
-            let result = try await GitHubClient(token: settings.token).fetchPullRequests(targets: settings.parsedTargets)
+            let filteredUsers = settings.parsedFilteredUsers
+            let result = try await GitHubClient(token: settings.token).fetchPullRequests(targets: settings.parsedTargets, filteredUsers: filteredUsers)
+            fetchedFilteredUsers = filteredUsers
             authenticatedLogin = result.login; pullRequests = result.pullRequests; errorMessage = nil
             notifyForChanges()
         } catch { errorMessage = error.localizedDescription }
@@ -63,7 +66,11 @@ final class PRStore: ObservableObject {
     func openFirstReady() { if let first = ready.first { open(first) } }
     func openFirstReview() { if let first = review.first { open(first) } }
 
-    func settingsDidChange() { configurePolling(); objectWillChange.send() }
+    func settingsDidChange() {
+        configurePolling(); objectWillChange.send()
+        // Authors outside the previous filter were never fetched, so a changed filter needs fresh data.
+        if settings.parsedFilteredUsers != fetchedFilteredUsers { Task { await refresh() } }
+    }
     func credentialsDidChange() {
         configurePolling(); knownReadyIDs = nil; knownReviewIDs = nil; credentialsRefreshTask?.cancel()
         credentialsRefreshTask = Task { [weak self] in

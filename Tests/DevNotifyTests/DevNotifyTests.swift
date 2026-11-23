@@ -56,6 +56,13 @@ import Testing
     }
 }
 
+@Test func detailsAreSkippedForDependabotAndFilteredOutAuthors() {
+    #expect(GitHubClient.shouldFetch(author: "alice", filteredUsers: []))
+    #expect(!GitHubClient.shouldFetch(author: "dependabot[bot]", filteredUsers: []))
+    #expect(GitHubClient.shouldFetch(author: "Alice", filteredUsers: ["alice"]))
+    #expect(!GitHubClient.shouldFetch(author: "bob", filteredUsers: ["alice"]))
+}
+
 @Test func commitHashDeterminesUpdateAvailability() {
     let current = "0123456789abcdef"
     #expect(!UpdateController.updateAvailable(current: current, latest: current))

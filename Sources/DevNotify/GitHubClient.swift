@@ -9,39 +9,65 @@ struct GitHubClient {
 
     init(token: String) { self.token = token }
 
-    func fetchPullRequests(targets: [String]) async throws -> (login: String, pullRequests: [PullRequest]) {
+    /// Caps parallel per-PR fetches (4 requests each) to stay clear of GitHub's secondary rate limits.
+    static let maxConcurrentPullRequests = 8
+
+    func fetchPullRequests(targets: [String], filteredUsers: Set<String> = []) async throws -> (login: String, pullRequests: [PullRequest]) {
         guard !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw GitHubError.missingToken }
-        let user: APIUser = try await get(path: "/user")
+        async let user: APIUser = get(path: "/user")
         let queries: [String] = targets.isEmpty
             ? ["author:@me", "assignee:@me", "review-requested:@me"].map { "is:pr is:open archived:false \($0)" }
             : targets.map { target in
                 let qualifier = target.hasPrefix("org:") || target.hasPrefix("repo:") ? target : (target.contains("/") ? "repo:\(target)" : "org:\(target)")
                 return "is:pr is:open archived:false \(qualifier)"
             }
-        var found: [Int: SearchItem] = [:]
-        for query in queries {
-            let result: SearchResponse = try await get(path: "/search/issues", query: ["q": query, "per_page": "100"])
-            for item in result.items where item.pullRequest != nil { found[item.id] = item }
+        let items = try await withThrowingTaskGroup(of: [SearchItem].self) { group in
+            for query in queries {
+                group.addTask { let result: SearchResponse = try await get(path: "/search/issues", query: ["q": query, "per_page": "100"]); return result.items }
+            }
+            var found: [Int: SearchItem] = [:]
+            for try await items in group { for item in items where item.pullRequest != nil { found[item.id] = item } }
+            return Array(found.values)
         }
-        var pullRequests: [PullRequest] = []
-        for item in found.values {
-            guard let coordinates = repositoryCoordinates(from: item.repositoryURL) else { continue }
-            async let detail: APIPullRequest = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/pulls/\(item.number)")
-            async let reviews: [Review] = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/pulls/\(item.number)/reviews", query: ["per_page": "100"])
-            let pr = try await detail
-            async let status: CombinedStatus = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/commits/\(pr.head.sha)/status")
-            async let checks: CheckRunsResponse = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/commits/\(pr.head.sha)/check-runs", query: ["per_page": "100"])
-            let reviewList = try await reviews
-            pullRequests.append(PullRequest(
-                id: pr.id, number: pr.number, title: pr.title, repository: "\(coordinates.owner)/\(coordinates.repo)",
-                authorLogin: pr.user.login, authorAvatarURL: pr.user.avatarURL, url: pr.htmlURL, headSHA: pr.head.sha,
-                updatedAt: pr.updatedAt, isAuthor: pr.user.login.caseInsensitiveCompare(user.login) == .orderedSame,
-                isApproved: Self.isApproved(reviews: reviewList), isDraft: pr.draft,
-                ciState: try await Self.ciState(status: status, checks: checks), mergeableState: pr.mergeableState ?? "unknown",
-                reviews: reviewList.filter { $0.state != "PENDING" }.map { .init(id: $0.id, reviewer: $0.user.login, state: $0.state) }
-            ))
+        let login = try await user.login
+        var pending = items.filter { Self.shouldFetch(author: $0.user.login, filteredUsers: filteredUsers) }.makeIterator()
+        let pullRequests = try await withThrowingTaskGroup(of: PullRequest?.self) { group in
+            for _ in 0..<Self.maxConcurrentPullRequests {
+                guard let item = pending.next() else { break }
+                group.addTask { try await fetchPullRequest(item, login: login) }
+            }
+            var results: [PullRequest] = []
+            while let result = try await group.next() {
+                if let result { results.append(result) }
+                if let item = pending.next() { group.addTask { try await fetchPullRequest(item, login: login) } }
+            }
+            return results
         }
-        return (user.login, pullRequests.sorted { $0.updatedAt > $1.updatedAt })
+        return (login, pullRequests.sorted { $0.updatedAt > $1.updatedAt })
+    }
+
+    /// Skips the four detail requests for PRs the UI would discard anyway.
+    static func shouldFetch(author: String, filteredUsers: Set<String>) -> Bool {
+        let login = author.lowercased()
+        return !login.hasPrefix("dependabot") && (filteredUsers.isEmpty || filteredUsers.contains(login))
+    }
+
+    private func fetchPullRequest(_ item: SearchItem, login: String) async throws -> PullRequest? {
+        guard let coordinates = repositoryCoordinates(from: item.repositoryURL) else { return nil }
+        async let detail: APIPullRequest = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/pulls/\(item.number)")
+        async let reviews: [Review] = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/pulls/\(item.number)/reviews", query: ["per_page": "100"])
+        let pr = try await detail
+        async let status: CombinedStatus = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/commits/\(pr.head.sha)/status")
+        async let checks: CheckRunsResponse = get(path: "/repos/\(coordinates.owner)/\(coordinates.repo)/commits/\(pr.head.sha)/check-runs", query: ["per_page": "100"])
+        let reviewList = try await reviews
+        return PullRequest(
+            id: pr.id, number: pr.number, title: pr.title, repository: "\(coordinates.owner)/\(coordinates.repo)",
+            authorLogin: pr.user.login, authorAvatarURL: pr.user.avatarURL, url: pr.htmlURL, headSHA: pr.head.sha,
+            updatedAt: pr.updatedAt, isAuthor: pr.user.login.caseInsensitiveCompare(login) == .orderedSame,
+            isApproved: Self.isApproved(reviews: reviewList), isDraft: pr.draft,
+            ciState: try await Self.ciState(status: status, checks: checks), mergeableState: pr.mergeableState ?? "unknown",
+            reviews: reviewList.filter { $0.state != "PENDING" }.map { .init(id: $0.id, reviewer: $0.user.login, state: $0.state) }
+        )
     }
 
     func merge(_ pullRequest: PullRequest) async throws {
@@ -124,8 +150,8 @@ private struct APIUser: Decodable {
 }
 private struct SearchResponse: Decodable { let items: [SearchItem] }
 private struct SearchItem: Decodable {
-    let id: Int; let number: Int; let repositoryURL: URL; let pullRequest: PullRequestMarker?
-    enum CodingKeys: String, CodingKey { case id, number; case repositoryURL = "repository_url"; case pullRequest = "pull_request" }
+    let id: Int; let number: Int; let user: APIUser; let repositoryURL: URL; let pullRequest: PullRequestMarker?
+    enum CodingKeys: String, CodingKey { case id, number, user; case repositoryURL = "repository_url"; case pullRequest = "pull_request" }
 }
 private struct PullRequestMarker: Decodable {}
 private struct APIPullRequest: Decodable {
