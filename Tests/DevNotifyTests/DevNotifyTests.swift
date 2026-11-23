@@ -31,14 +31,40 @@ import Testing
     #expect(GitHubClient.isApproved(reviews: reviews))
 }
 
+@Test func staleApprovalBlockedByGitHubIsNotReadyToMerge() {
+    let stale = makePR(id: 1, author: true, approved: true, ci: .passed, mergeableState: "blocked")
+    let behind = makePR(id: 2, author: true, approved: true, ci: .passed, mergeableState: "behind")
+    let computing = makePR(id: 3, author: true, approved: true, ci: .passed, mergeableState: "unknown")
+    let clean = makePR(id: 4, author: true, approved: true, ci: .passed, mergeableState: "clean")
+    let all = [stale, behind, computing, clean]
+    #expect(PRCategory.ready(from: all, ignoring: []).map(\.id) == [4])
+    #expect(PRCategory.needsReview(from: all, ignoring: []).map(\.id) == [1])
+}
+
+@Test func dismissedApprovalDoesNotCount() {
+    let reviews = [Review(id: 1, user: .init(login: "alice"), state: "APPROVED"),
+                   Review(id: 2, user: .init(login: "alice"), state: "DISMISSED")]
+    #expect(!GitHubClient.isApproved(reviews: reviews))
+}
+
+@Test func outOfOfficeEventsAreRecognizedByTitle() {
+    for title in ["Out of office", "OOO", "ooo - vacation", "Fora do escritório", "FORA DO ESCRITORIO"] {
+        #expect(CalendarEvent.isOutOfOffice(title: title), "\(title)")
+    }
+    for title in ["Daily standup", "Zoom with Brooke", "Planning"] {
+        #expect(!CalendarEvent.isOutOfOffice(title: title), "\(title)")
+    }
+}
+
 @Test func commitHashDeterminesUpdateAvailability() {
     let current = "0123456789abcdef"
     #expect(!UpdateController.updateAvailable(current: current, latest: current))
     #expect(UpdateController.updateAvailable(current: current, latest: "fedcba9876543210"))
 }
 
-private func makePR(id: Int, author: Bool, approved: Bool, ci: CIState, updatedAt: Date = .now, login: String = "dev") -> PullRequest {
+private func makePR(id: Int, author: Bool, approved: Bool, ci: CIState, updatedAt: Date = .now, login: String = "dev",
+                    mergeableState: String = "clean") -> PullRequest {
     PullRequest(id: id, number: id, title: "PR", repository: "org/repo", authorLogin: login, authorAvatarURL: nil,
         url: URL(string: "https://github.com/org/repo/pull/\(id)")!, headSHA: "sha", updatedAt: updatedAt,
-        isAuthor: author, isApproved: approved, isDraft: false, ciState: ci)
+        isAuthor: author, isApproved: approved, isDraft: false, ciState: ci, mergeableState: mergeableState)
 }

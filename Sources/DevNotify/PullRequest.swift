@@ -28,20 +28,23 @@ struct PullRequest: Identifiable, Codable, Equatable {
     let isApproved: Bool
     let isDraft: Bool
     let ciState: CIState
+    let mergeableState: String
     let reviews: [PullRequestReview]
 
     init(id: Int, number: Int, title: String, repository: String, authorLogin: String, authorAvatarURL: URL?, url: URL,
          headSHA: String, updatedAt: Date, isAuthor: Bool, isApproved: Bool, isDraft: Bool, ciState: CIState,
-         reviews: [PullRequestReview] = []) {
+         mergeableState: String = "clean", reviews: [PullRequestReview] = []) {
         self.id = id; self.number = number; self.title = title; self.repository = repository
         self.authorLogin = authorLogin; self.authorAvatarURL = authorAvatarURL; self.url = url; self.headSHA = headSHA
         self.updatedAt = updatedAt; self.isAuthor = isAuthor; self.isApproved = isApproved; self.isDraft = isDraft
-        self.ciState = ciState; self.reviews = reviews
+        self.ciState = ciState; self.mergeableState = mergeableState; self.reviews = reviews
     }
 
-    var isReadyToMerge: Bool { isAuthor && isApproved && !isDraft && ciState == .passed }
+    /// GitHub's own verdict: "blocked" covers stale or missing required approvals, "behind"/"dirty" need a branch update.
+    var isMergeable: Bool { ["clean", "has_hooks", "unstable"].contains(mergeableState) }
+    var isReadyToMerge: Bool { isAuthor && isApproved && !isDraft && ciState == .passed && isMergeable }
     var isReviewable: Bool { !isAuthor && !isDraft && ciState == .passed }
-    var needsReview: Bool { isAuthor && !isApproved && !isDraft }
+    var needsReview: Bool { isAuthor && !isDraft && (!isApproved || (ciState == .passed && mergeableState == "blocked")) }
     var isDependabot: Bool { authorLogin.lowercased().hasPrefix("dependabot") }
 }
 

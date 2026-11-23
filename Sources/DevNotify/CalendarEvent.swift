@@ -9,6 +9,16 @@ struct CalendarEvent: Identifiable, Equatable {
     let isAllDay: Bool
     let response: Response
     let videoURL: URL?
+    let isBirthday: Bool
+
+    /// Not real meetings: they would otherwise show as "in progress" all day and steal the Join hotkey.
+    var isHiddenFromSchedule: Bool { isBirthday || Self.isOutOfOffice(title: title) }
+
+    static func isOutOfOffice(title: String) -> Bool {
+        let normalized = title.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized == "ooo" || normalized.hasPrefix("ooo ") || normalized.contains("out of office") || normalized.contains("fora do escritorio")
+    }
 
     enum Response: String {
         case accepted, declined, pending, none
@@ -21,6 +31,7 @@ struct CalendarEvent: Identifiable, Equatable {
         id = "\(event.eventIdentifier ?? event.calendarItemIdentifier)|\(Int(event.startDate.timeIntervalSince1970))"
         title = event.title?.isEmpty == false ? event.title! : "Untitled event"
         startDate = event.startDate; endDate = event.endDate; isAllDay = event.isAllDay
+        isBirthday = event.calendar?.type == .birthday
         videoURL = VideoLink.find(in: [event.url?.absoluteString, event.location, event.notes].compactMap { $0 }.joined(separator: "\n"))
         guard event.status != .canceled, let participant = event.attendees?.first(where: { $0.isCurrentUser }) else {
             response = event.status == .canceled ? .declined : .none; return

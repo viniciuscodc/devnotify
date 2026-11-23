@@ -1,6 +1,9 @@
 import AppKit
 import SwiftUI
 
+/// Local view state without `@State`, whose macro plugin ships only with full Xcode, not the Command Line Tools.
+final class ViewFlag: ObservableObject { @Published var isOn = false }
+
 private enum AppTab: String, CaseIterable, Identifiable {
     case meetings = "Meetings"
     case pullRequests = "Pull Requests"
@@ -77,7 +80,7 @@ struct DevNotifyPopover: View {
 
 private struct MeetingListView: View {
     @ObservedObject var store: CalendarStore
-    @State private var showsIgnored = false
+    @StateObject private var showsIgnored = ViewFlag()
     var body: some View {
         if let error = store.authorizationError {
             ContentUnavailableView("Calendar unavailable", systemImage: "calendar.badge.exclamationmark", description: Text(error))
@@ -96,7 +99,7 @@ private struct MeetingListView: View {
                         ForEach(later) { event in MeetingRow(event: event, faded: false) { store.ignore(event) } }
                     }
                     if !store.ignoredEvents.isEmpty {
-                        DisclosureGroup(isExpanded: $showsIgnored) {
+                        DisclosureGroup(isExpanded: $showsIgnored.isOn) {
                             ForEach(store.ignoredEvents) { event in
                                 HStack { Text(event.title).lineLimit(1); Spacer(); Button { store.restore(event) } label: { Image(systemName: "arrow.uturn.backward") }.buttonStyle(.plain) }
                                     .font(.caption).foregroundStyle(.tertiary).padding(.leading, 20).padding(.vertical, 4)
@@ -152,7 +155,7 @@ private struct ResponseBadge: View {
 
 private struct PullRequestListView: View {
     @ObservedObject var store: PRStore
-    @State private var showsIgnored = false
+    @StateObject private var showsIgnored = ViewFlag()
     var body: some View {
         if store.settings.token.isEmpty {
             ContentUnavailableView("Connect GitHub", systemImage: "key.fill", description: Text("Open Settings and add a personal access token."))
@@ -166,14 +169,14 @@ private struct PullRequestListView: View {
                     prSection("READY TO MERGE", "checkmark.seal.fill", store.ready.count, .green)
                     if store.ready.isEmpty { empty("No approved PRs with passing CI") }
                     ForEach(store.ready) { PRCard(pullRequest: $0, kind: .ready, store: store) }
-                    prSection("REVIEW LIST", "person.2.fill", store.review.count, .blue)
-                    if store.review.isEmpty { empty("No reviewable PRs with passing CI") }
-                    ForEach(store.review) { PRCard(pullRequest: $0, kind: .review, store: store) }
                     prSection("NEEDS REVIEW", "person.badge.clock.fill", store.needsReview.count, .orange)
                     if store.needsReview.isEmpty { empty("None of your PRs are waiting for review") }
                     ForEach(store.needsReview) { PRCard(pullRequest: $0, kind: .needsReview, store: store) }
+                    prSection("REVIEW LIST", "person.2.fill", store.review.count, .blue)
+                    if store.review.isEmpty { empty("No reviewable PRs with passing CI") }
+                    ForEach(store.review) { PRCard(pullRequest: $0, kind: .review, store: store) }
                     if !store.ignored.isEmpty {
-                        DisclosureGroup(isExpanded: $showsIgnored) {
+                        DisclosureGroup(isExpanded: $showsIgnored.isOn) {
                             ForEach(store.ignored) { pr in HStack { Text("\(pr.repository) #\(pr.number)"); Text(pr.title).lineLimit(1); Spacer(); Button { store.restore(pr) } label: { Image(systemName: "arrow.uturn.backward") }.buttonStyle(.plain) }.font(.caption).padding(.leading, 20).padding(.vertical, 4) }
                         } label: { Label("\(store.ignored.count) ignored", systemImage: "eye.slash").font(.caption).foregroundStyle(.tertiary) }
                             .padding(.horizontal, 16).padding(.vertical, 12)

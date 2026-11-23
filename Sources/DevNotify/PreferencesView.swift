@@ -5,7 +5,7 @@ struct PreferencesView: View {
     @ObservedObject var calendar: CalendarStore
     @ObservedObject var updater: UpdateController
     @StateObject private var permissions = PermissionStatus()
-    @State private var showsToken = false
+    @StateObject private var showsToken = ViewFlag()
 
     var body: some View {
         TabView {
@@ -123,18 +123,18 @@ struct PreferencesView: View {
                     HStack(spacing: 8) {
                         ZStack {
                             SecureField("ghp_…", text: $settings.token)
-                                .opacity(showsToken ? 0 : 1)
-                                .allowsHitTesting(!showsToken)
+                                .opacity(showsToken.isOn ? 0 : 1)
+                                .allowsHitTesting(!showsToken.isOn)
                             TextField("ghp_…", text: $settings.token)
-                                .opacity(showsToken ? 1 : 0)
-                                .allowsHitTesting(showsToken)
+                                .opacity(showsToken.isOn ? 1 : 0)
+                                .allowsHitTesting(showsToken.isOn)
                         }
                         .textFieldStyle(.roundedBorder)
                         .font(.body.monospaced())
                         .frame(maxWidth: .infinity, minHeight: 24)
 
-                        Button { showsToken.toggle() } label: {
-                            Label(showsToken ? "Hide" : "Show", systemImage: showsToken ? "eye.slash" : "eye")
+                        Button { showsToken.isOn.toggle() } label: {
+                            Label(showsToken.isOn ? "Hide" : "Show", systemImage: showsToken.isOn ? "eye.slash" : "eye")
                                 .frame(width: 56)
                         }
                         .buttonStyle(.bordered)

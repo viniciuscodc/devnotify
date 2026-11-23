@@ -37,7 +37,7 @@ struct GitHubClient {
                 authorLogin: pr.user.login, authorAvatarURL: pr.user.avatarURL, url: pr.htmlURL, headSHA: pr.head.sha,
                 updatedAt: pr.updatedAt, isAuthor: pr.user.login.caseInsensitiveCompare(user.login) == .orderedSame,
                 isApproved: Self.isApproved(reviews: reviewList), isDraft: pr.draft,
-                ciState: try await Self.ciState(status: status, checks: checks),
+                ciState: try await Self.ciState(status: status, checks: checks), mergeableState: pr.mergeableState ?? "unknown",
                 reviews: reviewList.filter { $0.state != "PENDING" }.map { .init(id: $0.id, reviewer: $0.user.login, state: $0.state) }
             ))
         }
@@ -130,8 +130,11 @@ private struct SearchItem: Decodable {
 private struct PullRequestMarker: Decodable {}
 private struct APIPullRequest: Decodable {
     let id: Int; let number: Int; let title: String; let htmlURL: URL; let user: APIUser; let head: Head; let draft: Bool; let updatedAt: Date
+    let mergeableState: String?
     struct Head: Decodable { let sha: String }
-    enum CodingKeys: String, CodingKey { case id, number, title, user, head, draft; case htmlURL = "html_url"; case updatedAt = "updated_at" }
+    enum CodingKeys: String, CodingKey {
+        case id, number, title, user, head, draft; case htmlURL = "html_url"; case updatedAt = "updated_at"; case mergeableState = "mergeable_state"
+    }
 }
 struct Review: Decodable {
     let id: Int; let user: ReviewUser; let state: String

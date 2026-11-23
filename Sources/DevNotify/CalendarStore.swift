@@ -44,7 +44,7 @@ final class CalendarStore: ObservableObject {
             let start = Calendar.current.startOfDay(for: Date())
             let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!
             events = eventStore.events(matching: eventStore.predicateForEvents(withStart: start, end: end, calendars: nil))
-                .filter { $0.status != .canceled }.map(CalendarEvent.init).sorted { $0.startDate < $1.startDate }
+                .filter { $0.status != .canceled }.map(CalendarEvent.init).filter { !$0.isHiddenFromSchedule }.sorted { $0.startDate < $1.startDate }
             ignoredEventIDs.formIntersection(Set(events.map(\.id))); persistIgnoredEvents()
             authorizationError = nil
             scheduleNotifications(requestAuthorization: true)
